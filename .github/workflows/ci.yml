@@ -28,7 +28,7 @@ jobs:
       - name: Run MLProject (Train Model)
         run: |
           cd MLProject
-          mlflow run . --no-conda
+          mlflow run . --env-manager=local
           
       - name: Upload Artifacts to GitHub
         uses: actions/upload-artifact@v4
