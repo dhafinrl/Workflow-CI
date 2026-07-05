@@ -1,0 +1,54 @@
+name: Train and Deploy Model
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'MLProject/**'
+  workflow_dispatch:
+
+jobs:
+  train_and_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Install MLflow & dependencies
+        run: |
+          pip install mlflow==2.19.0 pandas scikit-learn
+          
+      - name: Run MLProject (Train Model)
+        run: |
+          cd MLProject
+          mlflow run . --no-conda
+          
+      - name: Upload Artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: mlruns
+          path: MLProject/mlruns/
+          
+      # ADVANCED: Build Docker image and push to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          
+      - name: Build and Push Docker Image via MLflow
+        run: |
+          cd MLProject
+          # Get the latest run ID
+          RUN_ID=$(ls mlruns/0/ | grep -v 'meta.yaml' | head -n 1)
+          # Build docker image
+          mlflow models build-docker -m mlruns/0/$RUN_ID/artifacts/model -n ${{ secrets.DOCKER_USERNAME }}/titanic-model:latest
+          # Push to docker hub
+          docker push ${{ secrets.DOCKER_USERNAME }}/titanic-model:latest
